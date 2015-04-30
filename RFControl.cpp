@@ -3,36 +3,49 @@
 #ifndef RF_CONTROL_VARDUINO
 #include "arduino_functions.h"
 #endif
-
-#define STATUS_WAITING 0
-#define STATUS_RECORDING_0 1
-#define STATUS_RECORDING_1 2
-#define STATUS_RECORDING_2 3
-#define STATUS_RECORDING_3 4
-#define STATUS_RECORDING_END 5
+typedef enum RXSTATE {	//
+	rxWaiting, rxRecording, rxReady
+} RXSTATE;
+#define MAX_PACK 3
+#define MIN_PACKAGE_PULSE 32
 
 #define PULSE_LENGTH_DIVIDER 4
 
 #define MIN_FOOTER_LENGTH (3500 / PULSE_LENGTH_DIVIDER)
-#define MIN_PULSE_LENGTH (100 / PULSE_LENGTH_DIVIDER)
+#define MIN_PULSE_LENGTH (75 / PULSE_LENGTH_DIVIDER)
 
-unsigned int footer_length;
-unsigned int timings[MAX_RECORDINGS];
-unsigned long lastTime = 0;
-unsigned char state;
-unsigned int duration = 0;
+volatile unsigned int footer_length;
+volatile unsigned char state;
+volatile int gPackage;
 int interruptPin = -1;
-int data_start[5];
-int data_end[5];
-bool Pack0EqualPack1 = false;
-bool Pack0EqualPack2 = false;
-bool Pack0EqualPack3 = false;
-bool Pack1EqualPack2 = false;
-bool Pack1EqualPack3 = false;
-bool data1_ready = false;
-bool data2_ready = false;
-bool skip = false;
+// RKR modifications
+typedef unsigned long ulong; //RKR U N S I G N E D is so verbose
+typedef unsigned int uint;
+// typedef unsigned char byte;
+
+volatile ulong lastStart;
+
+uint psniStart;
+uint psniIndex;
+
+typedef enum PSIX {	//
+	psData, psHeader, psFooter
+} PSIX;
+
+#define PS_MICRO_ELEMENTS 8
+uint psMicroMin[PS_MICRO_ELEMENTS]; // nibble index, 0xF is overflow so max 15
+uint psMicroMax[PS_MICRO_ELEMENTS]; // nibble index, 0xF is overflow so max 15
+byte psiCount[PS_MICRO_ELEMENTS]; // index frequency
+byte psMinMaxCount = 0;
+
+byte psiNibbles[512]; // byteCount + nBytes pulseIndex << 4 | spaceIndex
+#define NRELEMENTS(a) (sizeof(a) / sizeof(*(a)))
+
+#ifndef RKR_NO_DURATION
 bool new_duration = false;
+volatile unsigned int gDuration = 0;
+#endif
+
 void handleInterrupt();
 
 unsigned int RFControl::getPulseLengthDivider() {
@@ -41,19 +54,11 @@ unsigned int RFControl::getPulseLengthDivider() {
 
 void RFControl::startReceiving(int _interruptPin) {
   footer_length = 0;
-  state = STATUS_WAITING;
-  data_end[0] = 0;
-  data_end[1] = 0;
-  data_end[2] = 0;
-  data_end[3] = 0;
-  data_start[0] = 0;
-  data_start[1] = 0;
-  data_start[2] = 0;
-  data_start[3] = 0; 
-  data1_ready = false;
-  data2_ready = false;
+  gPackage = 0;
+  lastStart = 0;
+  state = rxWaiting;
   if(interruptPin != -1) {
-    hw_detachInterrupt(interruptPin);   
+    hw_detachInterrupt(interruptPin);
   }
   interruptPin = _interruptPin;
   hw_attachInterrupt(interruptPin, handleInterrupt);
@@ -61,81 +66,154 @@ void RFControl::startReceiving(int _interruptPin) {
 
 void RFControl::stopReceiving() {
   if(interruptPin != -1) {
-    hw_detachInterrupt(interruptPin);   
+    hw_detachInterrupt(interruptPin);
   }
   interruptPin = -1;
-  state = STATUS_WAITING;
+  state = rxWaiting;
 }
 
 bool RFControl::hasData() {
-  return (data1_ready || data2_ready);
+	if ((state == rxRecording) && (lastStart > 0) &&  (psniIndex >= (MIN_PACKAGE_PULSE/2))) {
+		  unsigned long currentTime = hw_micros();
+			if ((currentTime - lastStart) > 500000) {
+				state = rxReady;
+			}
+	}
+  if(state == rxReady) {
+	  // verify data
+	  return true;
+  }
+  return false;
 }
 
-void RFControl::getRaw(unsigned int **buffer, unsigned int* timings_size) {
-  if (data1_ready){
-    *buffer = &timings[0];
-    *timings_size = data_end[0] + 1;
-    data1_ready = false;
-  }
-  else if (data2_ready)
-  {
-    *buffer = &timings[data_start[1]];
-    *timings_size = data_end[1] - data_start[1] + 1;
-    data2_ready = false;
-  }
+unsigned int RFControl::getRawRkr(unsigned char **ppsiNibbles, unsigned int* ppsMinMaxCount, unsigned int** ppsMicroMin, unsigned int** ppsMicroMax, unsigned char** ppsiCount)
+{
+	if (psiNibbles[0] > 0 && psiNibbles[psiNibbles[0] + 1]) {
+		*ppsiNibbles = psiNibbles + psiNibbles[0] + 1;
+	}
+	else {
+		*ppsiNibbles = &psiNibbles[0];
+	}
+	*ppsMinMaxCount = psMinMaxCount;
+	*ppsMicroMin = psMicroMin;
+	*ppsMicroMax = psMicroMax;
+	*ppsiCount = psiCount;
+	return gPackage;
 }
 
 void RFControl::continueReceiving() {
-  if(state == STATUS_RECORDING_END)
+  if(state == rxReady)
   {
-    state = STATUS_WAITING;
-    data1_ready = false;
-    data2_ready = false;
+    state = rxWaiting;
   }
 }
 
+#ifndef RKR_NO_DURATION
 unsigned int RFControl::getLastDuration(){
 	new_duration = false;
-	return duration;
+	return gDuration;
 }
 
 bool RFControl::existNewDuration(){
 	return new_duration;
 }
+#endif
 
-bool probablyFooter(unsigned int duration) {
-  return duration >= MIN_FOOTER_LENGTH; 
+inline bool probablyFooter(unsigned int duration) {
+  return duration >= MIN_FOOTER_LENGTH;
 }
+
+#define RKR_FOOTER
 
 bool matchesFooter(unsigned int duration) {
+#ifndef RKR_FOOTER
   unsigned int footer_delta = footer_length/4;
   return (footer_length - footer_delta < duration && duration < footer_length + footer_delta);
+#else
+	unsigned int footer_delta = footer_length/4;
+//	return (footer_length - footer_delta < duration && duration < footer_length + footer_delta);
+	if ((duration >= MIN_FOOTER_LENGTH) && (footer_length - footer_delta < duration)) {
+		footer_length = duration;
+		return true;
+	}
+	return false;
+#endif
 }
 
-void startRecording(unsigned int duration) {
+void startRecording(unsigned int duration, unsigned long currentTime) {
   #ifdef RF_CONTROL_SIMULATE_ARDUINO
   printf(" => start recoding");
   #endif
+#ifndef RKR_FOOTER
   footer_length = duration;
-  data_end[0] = 0;
-  data_end[1] = 0;
-  data_end[2] = 0;
-  data_end[3] = 0;
-  data_start[0] = 0;
-  data_start[1] = 0;
-  data_start[2] = 0;
-  data_start[3] = 0;
-  Pack0EqualPack3 = true;
-  Pack1EqualPack3 = true;
-  Pack0EqualPack2 = true;
-  Pack1EqualPack2 = true;
-  Pack0EqualPack1 = true;
-  data1_ready = false;
-  data2_ready = false;
-  state = STATUS_RECORDING_0;
+#else
+  footer_length = MIN_FOOTER_LENGTH;
+#endif
+	lastStart = currentTime;
+	psMinMaxCount = 0;
+	psniIndex = 0;
+	psniStart = psniIndex;
+	if (psniIndex < NRELEMENTS(psiNibbles)) {
+		psiNibbles[psniIndex++] = 0;
+	}
 }
 
-void recording(unsigned int duration, int package) {
+/*
+ *	psNibbleIndex
+ *
+ * Lookup/Store timing of pulse and space in psMicroMin/psMicroMax/psiCount array
+ * Could use seperate arrays for pulses and spaces but 15 (0xF for overflow) seems enough
+ * Store Header as last entry, footer will come last of normal data...
+ */
+byte psNibbleIndex(uint pulse, uint space, byte psDataHeaderFooter) {
+	byte psNibble = 0;
+	uint value = pulse;
+	for (int j = 0; j < 2; j++) {
+		int i;
+		if (value > 0) {
+			for (i = 0; i < psMinMaxCount; i++) {
+				if (((psMicroMin[i] < 100) || ((psMicroMin[i] - 100) <= value))
+					&& (value <= (psMicroMax[i] + 100))) {
+					if (psMicroMin[i] > value) { // min
+						psMicroMin[i] = value;
+					}
+					else if (value > psMicroMax[i]) { // max
+						psMicroMax[i] = value;
+					}
+					psiCount[i]++;
+					break;
+				}
+			}
+			if (i >= psMinMaxCount && i < 0x0F) { // new value
+				if (psDataHeaderFooter == psHeader) {
+					i = PS_MICRO_ELEMENTS -1;
+				}
+				else if (i < PS_MICRO_ELEMENTS - 1) { // except header
+					psMinMaxCount++;
+				}
+				else {
+					i = 0x0F; // overflow
+				}
+				if (i < PS_MICRO_ELEMENTS) {
+					psMicroMin[i] = value;
+					psMicroMax[i] = value;
+					psiCount[i] = 1;
+				}
+			}
+		}
+		else {
+			i = 0x0F; //invalid data
+		}
+		psNibble = (psNibble << 4) | (i & 0x0F);
+		value = space;
+	}
+	return psNibble;
+}
+
+
+static int recording(unsigned int duration, uint psCount) {
+	static uint pulseHeader, pulse, spaceHeader, space;
+
 #ifdef RF_CONTROL_SIMULATE_ARDUINO
   //nice string builder xD
   printf("%s:", sate2string[state]);
@@ -164,130 +242,95 @@ void recording(unsigned int duration, int package) {
   else if (duration < 100000)
     printf(" duration=%i", duration);
 #endif
-  if (matchesFooter(duration)) //test for footer (+-25%).
+  if ((psCount >= 4) && matchesFooter(duration)) //test for footer (+-25%).
   {
-    //Package is complete!!!!
-    timings[data_end[package]] = duration;
-    data_start[package + 1] = data_end[package] + 1;
-    data_end[package + 1] = data_start[package + 1];
+		switch (psCount & 1){ // rest of data
+		case 0:
+			pulse = duration;
+			space = 0;
+			if (psniIndex < NRELEMENTS(psiNibbles)) {
+				psiNibbles[psniIndex++] = psNibbleIndex(pulse, space, psFooter);
+			}
+			break;
+		case 1:
+			space = duration;
+			if (psniIndex < NRELEMENTS(psiNibbles)) {
+				psiNibbles[psniIndex++] = psNibbleIndex(pulse, space, psFooter);
+			}
+			break;
+		}
 
-    //Received more than 32 timings and start and end are the same footer then enter next state
-    //less than 32 timings -> restart the package.
-    if (data_end[package] - data_start[package] >= 32)
-    {
-      if (state == STATUS_RECORDING_3) {
-        state = STATUS_RECORDING_END;
-      }else
-      {
-        state = STATUS_RECORDING_0 + package + 1;
-      }
-    }
-    else
-    {
-      #ifdef RF_CONTROL_SIMULATE_ARDUINO
-        printf(" => restart package");
-      #endif
-      data_end[package] = data_start[package];
-      switch (package)
-      {
-        case 0:
-          startRecording(duration); //restart
-          break;
-        case 1:
-          Pack0EqualPack1 = true;
-          break;
-        case 2:
-          Pack0EqualPack2 = true;
-          Pack1EqualPack2 = true;
-          break;
-        case 3:
-          Pack0EqualPack3 = true;
-          Pack1EqualPack3 = true;
-          break;
-      }
-    }
+	  //recordPackageComplete(duration, package);
+	  if (psniIndex - psniStart >= (MIN_PACKAGE_PULSE/2)) {
+			if (psniStart < NRELEMENTS(psiNibbles) && (psniIndex - psniStart) <= 0xFF) {
+			  psiNibbles[psniStart] = psniIndex - psniStart - 1;
+		   	}
+		   	psniStart = psniIndex;
+			if (psniIndex < NRELEMENTS(psiNibbles)) {
+				psiNibbles[psniIndex++] = 0;
+			}
+		  return 3;
+	  }
+	  else { // restart
+	  		psniIndex = psniStart + 1;
+		  return 2;
+	  }
   }
   else
   {
     //duration isnt a footer? this is the way.
     //if duration higher than the saved footer then the footer isnt a footer -> restart.
-    if (duration > footer_length)
+    if (duration > footer_length /* + MIN_PULSE_LENGTH */)
     {
-      startRecording(duration);
+      // startRecording(duration);
+      return 1;
     }
-    //normal
-    else if (data_end[package] < MAX_RECORDINGS - 1)
-    {
-      timings[data_end[package]] = duration;
-      data_end[package]++;
-    }
-    //buffer reached end. Stop recording.
-    else
-    {
-      state = STATUS_WAITING;
-    }
+    else if (psCount < 4) { // start of signal possibly sync p/s and first data p/s, might miss first p/s timings
+		switch (psCount) {
+		case 0:
+			pulseHeader = duration;
+			break;
+		case 1:
+			spaceHeader = duration;
+			break;
+		case 2:
+			pulse = duration;
+			break;
+		case 3:
+			space = duration;
+			byte psNibble = psNibbleIndex(pulse, space, psData);
+			if (psniIndex < NRELEMENTS(psiNibbles) - 1) {
+				psiNibbles[psniIndex++] = psNibbleIndex(pulseHeader, spaceHeader, psHeader);
+				psiNibbles[psniIndex++] = psNibble;
+			}
+			break;
+		}
+	}
+	else {
+		switch (psCount & 1){ // rest of data
+		case 0:
+			pulse = duration;
+			break;
+		case 1:
+			space = duration;
+			if (psniIndex < NRELEMENTS(psiNibbles)) {
+				psiNibbles[psniIndex++] = psNibbleIndex(pulse, space, psData);
+			}
+			break;
+		}
+	}
   }
-}
-
-
-
-void verify(bool *verifiystate, bool *datastate, unsigned int refVal_max, unsigned int refVal_min, int pos, int package){
-  if (*verifiystate && pos >= 0)
-  {
-    unsigned int mainVal = timings[pos];
-    if (refVal_min > mainVal || mainVal > refVal_max)
-    {
-      //werte passen nicht
-      *verifiystate = false;
-    }
-    #ifdef RF_CONTROL_SIMULATE_ARDUINO
-    printf(" - verify = %s", *verifiystate ? "true" : "false");
-    #endif
-    if (state == (STATUS_RECORDING_0 + package + 1) && *verifiystate == true)
-    {
-      #ifdef RF_CONTROL_SIMULATE_ARDUINO
-      printf("\nPackage are equal.");
-      #endif
-      *datastate = true;
-    }
-  }
-}
-
-void verification(int package) {
-  int refVal = timings[data_end[package] - 1];
-  int delta = refVal / 8 + refVal / 4; //+-37,5%
-  int refVal_min = refVal - delta;
-  int refVal_max = refVal + delta;
-  int pos = data_end[package] - 1 - data_start[package];
-
-  switch (package)
-  {
-  case 1:
-    verify(&Pack0EqualPack1, &data1_ready, refVal_max, refVal_min, pos, package);
-    break;
-  case 2:
-    verify(&Pack0EqualPack2, &data1_ready, refVal_max, refVal_min, pos, package);
-    verify(&Pack1EqualPack2, &data2_ready, refVal_max, refVal_min, pos, package);
-    if (state == STATUS_RECORDING_3 && data1_ready == false && data2_ready == false) {
-      state = STATUS_WAITING;
-    }
-    break;
-  case 3:
-    if (!Pack0EqualPack2)
-      verify(&Pack0EqualPack3, &data1_ready, refVal_max, refVal_min, pos, package);
-    if (!Pack1EqualPack2)
-      verify(&Pack1EqualPack3, &data2_ready, refVal_max, refVal_min, pos, package);
-    if (state == STATUS_RECORDING_END && data1_ready == false && data2_ready == false) {
-      state = STATUS_WAITING;
-    }
-    break;
-  }
+  return 0;
 }
 
 void handleInterrupt() {
+	static bool skip = false;
+	static unsigned long lastTime = 0;
+	static uint psCount=0;
+
   //hw_digitalWrite(9, HIGH);
   unsigned long currentTime = hw_micros();
-  duration = (currentTime - lastTime) / PULSE_LENGTH_DIVIDER;
+  unsigned int duration = (currentTime - lastTime) / PULSE_LENGTH_DIVIDER;
   //lastTime = currentTime;
   if (skip) {
     skip = false;
@@ -295,28 +338,41 @@ void handleInterrupt() {
   }
   if (duration >= MIN_PULSE_LENGTH)
   {
+#ifndef RKR_NO_DURATION
 	new_duration = true;
-    lastTime = currentTime; 
+	gDuration = duration;
+#endif
+    lastTime = currentTime;
     switch (state)
     {
-    case STATUS_WAITING:
-      if (probablyFooter(duration))
-        startRecording(duration);
+    case rxWaiting:
+      if (probablyFooter(duration)) {
+		state = rxRecording;
+        psCount = 0;
+        startRecording(duration, currentTime);
+	  }
       break;
-    case STATUS_RECORDING_0:
-      recording(duration, 0);
-      break;
-    case STATUS_RECORDING_1:
-      recording(duration, 1);
-      verification(1);
-      break;
-    case STATUS_RECORDING_2:
-      recording(duration, 2);
-      verification(2);
-      break;
-    case STATUS_RECORDING_3:
-      recording(duration, 3);
-      verification(3);
+    case rxRecording: {
+      switch (recording(duration, psCount)) {
+		case 1: // timeout in package, restart
+	        startRecording(duration, currentTime);
+			psCount = 0;
+			gPackage = 0;
+	    break;
+	    case 2: // restart package
+			if (gPackage == 0) {
+		        startRecording(duration, currentTime);
+			}
+			psCount = 0;
+			break;
+		case 3:
+			gPackage++;
+			psCount = 0;
+	    default: // normal data
+	    	psCount++;
+	    	break;
+	    }
+      }
       break;
     }
   }
@@ -328,157 +384,14 @@ void handleInterrupt() {
   #endif
 }
 
-bool RFControl::compressTimings(unsigned int buckets[8], unsigned int *timings, unsigned int timings_size) {
-  for(int j = 0; j < 8; j++ ) {
-    buckets[j] = 0;
-  }
-  unsigned long sums[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-  unsigned int counts[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-  //sort timings into buckets, handle max 8 different pulse length
-  for(unsigned int i = 0; i < timings_size; i++) 
-  {
-    int j = 0;
-    for(; j < 8; j++) {
-      unsigned int refVal = buckets[j];
-      unsigned int val = timings[i];
-      //if bucket is empty
-      if(refVal == 0) {
-        //sort into bucket
-        buckets[j] = val;
-        timings[i] = j;
-        sums[j] += val;
-        counts[j]++;
-        break;
-      } else {
-        //check if bucket fits:
-        unsigned int delta = refVal/4 + refVal/8;
-        if(refVal - delta < val && val < refVal + delta) {
-          timings[i] = j;
-          sums[j] += val;
-          counts[j]++;
-          break;
-        }
-      }
-      //try next..
-    }
-    if(j == 8) {
-      //we have not found a bucket for this timing, exit...
-      return false;
-    }
-  }
-  for(int j = 0; j < 8; j++) {
-    if(counts[j] != 0) {
-      buckets[j] = sums[j] / counts[j];
-    }
-  }
-  return true;
-}
-
-bool RFControl::compressTimingsAndSortBuckets(unsigned int buckets[8], unsigned int *timings, unsigned int timings_size) {
-  //clear buckets
-  for(int j = 0; j < 8; j++ ) {
-    buckets[j] = 0;
-  }
-  //define arrays too calc the average value from the buckets
-  unsigned long sums[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-  unsigned int counts[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-  //sort timings into buckets, handle max 8 different pulse length
-  for(unsigned int i = 0; i < timings_size; i++) 
-  {
-    int j = 0;
-    //timings need only there to load
-    unsigned int val = timings[i];
-    for(; j < 8; j++) {
-      unsigned int refVal = buckets[j];
-      //if bucket is empty
-      if(refVal == 0) {
-        //sort into bucket
-        buckets[j] = val;
-        sums[j] += val;
-        counts[j]++;
-        break;
-      } else {
-        //check if bucket fits:
-        //its allowed round about 37,5% diff
-        unsigned int delta = refVal/4 + refVal/8;
-        if(refVal - delta < val && val < refVal + delta) {
-          sums[j] += val;
-          counts[j]++;
-          break;
-        }
-      }
-      //try next..
-    }
-    if(j == 8) {
-      //we have not found a bucket for this timing, exit...
-      return false;
-    }
-  }
-  //calc the average value from the buckets
-  for(int j = 0; j < 8; j++) {
-    if(counts[j] != 0) {
-      buckets[j] = sums[j] / counts[j];
-    }
-  }
-  //buckets are defined
-  //lets scramble a little bit
-  for(int i = 0; i < 8; i++) {
-    for(int j = 0; j < 7; j++) {
-      if(buckets[j] > buckets[j+1]){
-        unsigned int temp = buckets[j];
-        buckets[j] = buckets[j+1];
-        buckets[j+1] = temp;
-      }
-    }
-  }
-  // now the buckets are ordered by size from low to high.
-  // but the zero ist first. lets move this back
-  // find first value
-  int first = 0;
-  for(int i = 0; i < 8; i++){
-    if(buckets[i] != 0){
-    first = i;
-    break;
-    }
-  }
-  //copy buckets to the start of the array
-  int end = 8 - first;
-  for(int i = 0; i < end; i++){
-    buckets[i] = buckets[first];
-    buckets[first] = 0;
-    first++;
-  }
-  
-  //and now we can assign the timings with the position_value from the buckets
-  //pre calc ref values. save time
-  unsigned int ref_Val_h[8];
-  unsigned int ref_Val_l[8];
-  for(int i = 0; i<8;i++) {
-    unsigned int refVal = buckets[i];
-    //check if bucket fits:
-    unsigned int delta = refVal/4 + refVal/8;
-    ref_Val_h[i] = refVal + delta;
-    ref_Val_l[i] = refVal - delta;
-  }
-  for(unsigned int i = 0; i < timings_size; i++) 
-  {
-    unsigned int val = timings[i];
-    for(int j = 0; j < 8; j++) {
-      if(ref_Val_l[j] < val && val < ref_Val_h[j]) {
-        timings[i] = j;
-        break;
-      }
-    }
-  }
-  return true;
-}
+// original sending parts
 
 void listenBeforeTalk()
 {
   // listen before talk
   unsigned long waited = 0;
   if(interruptPin != -1) {
-    while(state > STATUS_RECORDING_0 && state != STATUS_RECORDING_END) {
+    while(state == rxRecording) {
       //wait till no rf message is in the air
       waited += 5;
       hw_delayMicroseconds(3); // 5 - some micros for other stuff
@@ -488,18 +401,21 @@ void listenBeforeTalk()
       }
       // some delay between the message in air and the new message send
       // there could be additional repeats following so wait some more time
-      if(state <= STATUS_RECORDING_0 || state == STATUS_RECORDING_END) {
+      if((state != rxRecording) || (gPackage == 0)) {
         waited += 1000000;
         hw_delayMicroseconds(1000000);
       }
     }
     // stop receiving while sending, this method preserves the recording state
-    hw_detachInterrupt(interruptPin);   
+    hw_detachInterrupt(interruptPin);
   }
+#if 0
   // this prevents loosing the data in the receiving buffer, after sending
   if(data1_ready || data2_ready) {
-    state = STATUS_RECORDING_END;
+    state = rxReady;
   }
+#else
+#endif
   // Serial.print(waited);
   // Serial.print(" ");
 }
