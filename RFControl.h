@@ -10,7 +10,7 @@ class RFControl
 {
   public:
     static unsigned int getPulseLengthDivider();
-    static void startReceiving(int interruptPin);
+    static void startReceiving(int interruptPin, bool fIsRf = true);
     static void stopReceiving();
     static bool hasData();
     static void continueReceiving();
@@ -20,6 +20,7 @@ class RFControl
     static bool compressTimingsAndSortBuckets(unsigned int buckets[8], unsigned int *timings, unsigned int timings_size);
 #else
     static unsigned int getRawRkr(unsigned char **psiNibbles, unsigned int* ppsMinMaxCount, unsigned int** ppsMicroMin, unsigned int** ppsMicroMax, unsigned char** ppsiCount);
+	static unsigned int getPacket(unsigned char **ppsiNibbles, unsigned int* ppsMinMaxCount, unsigned int** ppsMicroMin, unsigned int** ppsMicroMax, unsigned char** ppsiCount);
 #endif
     static void sendByTimings(int transmitterPin, unsigned int *timings, unsigned int timings_size, unsigned int repeats = 3);
     static void sendByCompressedTimings(int transmitterPin, unsigned long* buckets, char* compressTimings, unsigned int repeats = 3);

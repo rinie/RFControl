@@ -1,0 +1,101 @@
+Homeduino Baudrate 115200 ready
+try RF receive 0
+ACK
+0-501 RecordingStates 1:rsStart-Space:1 9:rsNextPackage-Pulse:12 
+RF receive 44#12 {P20/0 S13/7} H[ 3920  560]  F[  560 5100]  [  560 1720] 0x5115000400
+3903-501 RecordingStates 1:rsStart-Space:1 9:rsNextPackage-Pulse:5 
+RF receive 44#5 {P20/0 S13/7} H[ 3912  564]  F[  564 5104]  [  564 1720] 0x5115000400
+7027-501 RecordingStates 1:rsStart-Space:1 9:rsNextPackage-Pulse:6 
+RF receive 44#6 {P20/0 S13/7} H[ 3912  560]  F[  560 5108]  [  560 1724] 0x5115000400
+9097-501 RecordingStates 1:rsStart-Space:1 9:rsNextPackage-Pulse:11 
+RF receive 44#11 {P20/0 S11/9} H[ 3912  560]  F[  560 5080]  [  560 1716] 0x5551044000
+511-501 RecordingStates 1:rsStart-Space:1 9:rsNextPackage-Pulse:8 
+RF receive 44#19 {P20/0 S11/9} H[ 3920  560]  F[  560 5080]  [  560 1720] 0x5551044000
+7701-500 RecordingStates 1:rsStart-Space:1 9:rsNextPackage-Pulse:5 
+RF receive 44#5 {P20/0 S13/7} H[ 3912  560]  F[  560 5104]  [  560 1720] 0x5115000400
+4447-501 RecordingStates 6:rsStart-Pulse:1 9:rsNextPackage-Pulse:4 
+RF receive 132#4 {P64/0 S32/32} H[  280 2732]  F[  280 10336]  [  280 1348] 0x11114441411444414111114441111141
+1652-501 RecordingStates 6:rsStart-Pulse:1 9:rsNextPackage-Pulse:4 
+RF receive 132#8 {P64/0 S32/32} H[  276 2728]  F[  276 10328]  [  276 1348] 0x11114441411444414111114441111141
+1421-501 RecordingStates 6:rsStart-Pulse:1 9:rsNextPackage-Pulse:4 
+RF receive 132#4 {P64/0 S32/32} H[  272 2732]  F[  272 10324]  [  272 1348] 0x11114441411444414111114441111141
+1771-500 RecordingStates 6:rsStart-Pulse:1 9:rsNextPackage-Pulse:4 
+RF receive 132#4 {P64/0 S32/32} H[  276 2728]  F[  276 10328]  [  276 1348] 0x11114441411444414111114441111141
+1115-500 RecordingStates 6:rsStart-Pulse:1 9:rsNextPackage-Pulse:4 
+RF receive 132#8 {P64/0 S32/32} H[  276 2732]  F[  276 10324]  [  276 1352] 0x11114441411444414111114441111141
+3337-501 RecordingStates 6:rsStart-Pulse:1 9:rsNextPackage-Pulse:7 
+RF receive 50#7 {P9/14 S14/9} F[  956 9924]  [  320  956] 0xA9A9999A9999
+2180-501 RecordingStates 6:rsStart-Pulse:1 9:rsNextPackage-Pulse:7 
+RF receive 50#7 {P9/14 S14/9} F[  956 9928]  [  316  956] 0xA9A9999A9999
+
+Snel terug naar waiting; x10 minder, rest geen verschil
+
+
+
+Homeduino Baudrate 115200 ready
+try RF receive 0
+ACK
+RecordingStates rsStartSpace:1 rsTimeoutSpace:13 rsRestart-Pulse:17 rsNextPackage-Pulse:6 
+RF receive 44#6 {P20/0 S13/7} H[ 3920  560]  F[  560 5088]  [  560 1704] 0x5115000400
+RecordingStates rsTimeoutSpace:21 rsRestart-Pulse:1 rsRestart-Pulse:28 rsNextPackage-Pulse:4 
+RF receive 44#4 {P20/0 S13/7} H[ 3924  560]  F[  560 5092]  [  560 1708] 0x5115000400
+RecordingStates rsStartSpace:1 rsTimeoutSpace:41 rsRestartSpace:1 rsNextPackageSpace:1 rsRestart-Pulse:34 rsNextPackage-Pulse:1 
+RF receive 60#0 [  396 1392 2572 3212 2936 13920 43120] 701010101010202020202020101010101010101010202020201010201013
+RecordingStates rsStartSpace:1 rsNextPackageSpace:1 rsRestart-Pulse:3 rsNextPackage-Pulse:7 rsNextPackage-Pulse:1 
+RF receive 31#0 [  800  228 2188 2256 4556 5608 6236] 0101020101010131310131010131014F
+RecordingStates rsStartSpace:1 rsTimeoutSpace:8 rsRestart-Pulse:9 rsNextPackage-Pulse:7 
+RF receive 44#7 {P20/0 S13/7} H[ 3924  560]  F[  560 5092]  [  560 1708] 0x5115000400
+RecordingStates rsTimeoutSpace:102 rsRestart-Pulse:1 rsRestart-Pulse:78 rsNextPackage-Pulse:6 
+RF receive 132#6 {P64/0 S32/32} H[  276 2716]  F[  276 10292]  [  276 1340] 0x11114441411444414111114441111141
+RecordingStates rsRestart-Pulse:1 rsNextPackage-Pulse:6 
+RF receive 132#12 {P64/0 S32/32} H[  272 2716]  F[  272 10288]  [  272 1344] 0x11114441411444414111114441111141
+RecordingStates rsRestart-Pulse:1 
+RF receive 0#0 {P0/0 S0/0} [  276 1348 2720] 
+RecordingStates rsTimeoutSpace:3 rsRestart-Pulse:1 rsRestart-Pulse:3 rsNextPackage-Pulse:12 
+RF receive 50#12 {P9/14 S14/9} F[  956 9952]  [  316  956] 0xA9A9999A9999
+RecordingStates rsRestart-Pulse:1 rsNextPackage-Pulse:2 
+RF receive 49#0 {P14/9 S9/14} [  316  956 9956] 0101001101010011001100110011010100110011001100112F
+RecordingStates rsTimeoutSpace:5 rsRestart-Pulse:1 rsRestart-Pulse:11 rsNextPackage-Pulse:3 
+RF receive 50#3 {P9/14 S14/9} F[  956 9936]  [  316  956] 0xA9A9999A9999
+RecordingStates rsTimeoutSpace:255 rsRestartSpace:1 rsNextPackageSpace:1 rsRestart-Pulse:1 rsRestart-Pulse:255 rsNextPackage-Pulse:6 
+RF receive 128#0 [  848  336 2552 2768 10472 13584 42472] 71010101010121212121212101010101010101010121212121010121010101010101212101210121010101010101010101010101010101010301012101012105
+RecordingStates rsRestartSpace:1 rsNextPackageSpace:1 rsRestart-Pulse:1 rsRestart-Pulse:1 rsNextPackage-Pulse:2 
+RF receive 127#0 [  220 1660 2508 3912 4592 5852 6648] 7010101010102020202020201010101010100001212121201010201010101010102020102010201010101010101010101010101010101020201020101020105F
+RecordingStates rsStartSpace:1 rsTimeoutSpace:255 rsRestart-Pulse:255 rsNextPackage-Pulse:1 rsNextPackage-Pulse:3 
+RF receive 130#3 [  316 1244 2192 6112] 1210101010101212121212121010101010101010121012121210101210101010101012121012101210101010101010101010101010101010121212121010121213
+RecordingStates rsNextPackageSpace:1 rsRestart-Pulse:1 rsNextPackage-Pulse:1 rsNextPackage-Pulse:2 
+RF receive 2#6 {P0/0 S0/0} [  780 1364] 0x01
+RecordingStates rsStartSpace:1 rsTimeoutSpace:255 rsRestartSpace:1 rsNextPackageSpace:1 rsRestart-Pulse:255 rsNextPackage-Pulse:2 rsNextPackage-Pulse:1 
+RF receive 52#0 [ 1192  392 2240 2732 4868 5976 13452] 7101010101012121212121210101010101010101032121210105
+RecordingStates rsStartSpace:1 rsTimeoutSpace:4 rsRestartSpace:3 rsNextPackageSpace:1 rsRestart-Pulse:6 rsNextPackage-Pulse:5 rsNextPackage-Pulse:1 
+RF receive 29#0 [  360 1264 2240 2956 6136 13264 29032] 23230303230313131313030313134F
+RecordingStates rsStartSpace:1 rsTimeoutSpace:255 rsRestartSpace:1 rsNextPackageSpace:1 rsRestart-Pulse:255 rsNextPackage-Pulse:3 
+RF receive 80#0 [  412 1256 2680 3076 4328 6172 50840] 70101010101020202020202010101010101010102010202020101020101010101010202010201015
+RecordingStates rsRestart-Pulse:1 rsNextPackage-Pulse:1 
+RF receive 0#0 {P0/0 S0/0} [ 2528  376 41360 4848 7752 1460 5480] 
+RecordingStates rsTimeoutSpace:255 rsRestart-Pulse:1 rsRestart-Pulse:255 rsNextPackage-Pulse:5 rsNextPackage-Pulse:5 
+RF receive 50#5 {P5/18 S18/5} F[ 1068 11048]  [  368 1068] 0xA9AAA9AAA999
+RecordingStates rsStartSpace:1 rsTimeoutSpace:198 rsNextPackageSpace:1 rsRestart-Pulse:214 rsNextPackage-Pulse:1 rsNextPackage-Pulse:3 
+RF receive 130#4 [  356 1212 2216 3160 6144 6752 20924] 1210101010101212121212121010101010101010101012121210101210101010101012121012101210101010101010101010101010101010121210101212101213
+RecordingStates rsTimeoutSpace:2 rsRestartSpace:1 rsRestart-Pulse:1 rsNextPackage-Pulse:3 rsNextPackage-Pulse:1 
+RF receive 105#0 [  240 1464 2272 2888 6204 10780 44792] 101010101010101010102020201010201010101010102020102010201010101010101010101010101010101020201010202010204F
+RecordingStates rsStartSpace:1 rsTimeoutSpace:255 rsNextPackageSpace:1 rsRestart-Pulse:255 rsNextPackage-Pulse:8 rsNextPackage-Pulse:1 
+RF receive 56#0 [  848  320 2132 3056 13420 18308 59468] 71010101010121212121212101010101010101010103212101012104
+RecordingStates rsTimeoutSpace:1 rsRestartSpace:1 rsRestart-Pulse:1 rsRestart-Pulse:4 rsNextPackage-Pulse:2 rsNextPackage-Pulse:1 
+RF receive 129#0 [  260 1304 2232 6184 2312] 701010101010202020202020101010101010101010102020201010201010101020201020102010201010101010101010101010101010101020101020101020203F
+RecordingStates rsStartSpace:1 rsTimeoutSpace:255 rsRestartSpace:4 rsRestart-Pulse:255 rsNextPackage-Pulse:7 rsNextPackage-Pulse:3 
+RF receive 130#3 [  280 1280 2212 6148] 1210101010101212121212121010101010101010101012121210101210101010121210121012101210101010101010101010101010101010121010121010121213
+RecordingStates rsStartSpace:1 rsTimeoutSpace:2 rsNextPackageSpace:2 rsRestart-Pulse:6 rsNextPackage-Pulse:3 rsNextPackage-Pulse:1 
+RF receive 75#0 [  216 1336 2436 2868 6012 2540] 770101213101022101210121020101010101010101010101010101010121010121010121214F
+RecordingStates rsStartSpace:1 rsTimeoutSpace:255 rsRestartSpace:1 rsNextPackageSpace:1 rsRestart-Pulse:255 rsNextPackage-Pulse:5 rsNextPackage-Pulse:1 
+RF receive 2#2 {P0/0 S0/0} [  316 1316] 0x01
+RecordingStates rsTimeoutSpace:6 rsRestartSpace:3 rsRestart-Pulse:1 rsRestart-Pulse:8 rsNextPackage-Pulse:4 rsNextPackage-Pulse:2 
+RF receive 2#2 {P0/0 S0/0} H[ 2236 1424]  [  240 1424] 0x
+RecordingStates rsTimeoutSpace:255 rsRestart-Pulse:1 rsRestart-Pulse:255 rsNextPackage-Pulse:2 
+RF receive 53#0 [  684  372 1704 2188 2680 4156 14236] 77032423221212121212322222222222222222323222020222025F
+RecordingStates rsTimeoutSpace:255 rsRestartSpace:1 rsNextPackageSpace:2 rsRestart-Pulse:1 rsRestart-Pulse:255 rsNextPackage-Pulse:6 rsNextPackage-Pulse:5 
+RF receive 130#3 [  324 1232 2184 6100] 1210101010101212121212121010101010101010121210121210101210101010121210121012101210101010101010101010101010101010101012101012101213
+RecordingStates rsTimeoutSpace:255 rsRestartSpace:2 rsRestart-Pulse:1 rsRestart-Pulse:255 rsNextPackage-Pulse:38 rsNextPackage-Pulse:3 
+RF receive 57#0 {P27/0 S24/3} [  968   96 2032 2860 8052 45480 27228] 710101010000000000000000000000000000000000000000000000006F
+RecordingStates rsStartSpace:1 rsTimeoutSpace:37 rsRestart-Pulse:39 rsNextPackage-Pulse:1 
+RF receive 41#0 {P17/2 S13/6} [  824  156 6052 13672 14128] 01011111010101000000000000000000000000003F
