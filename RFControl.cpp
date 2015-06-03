@@ -270,7 +270,10 @@ void printRecordingStates() {
 		}
 		Serial.print(now-lastPrint);
 		lastPrint = now;
-		Serial.print(" RecordingStates ");
+		Serial.print(F(" RecordingStates footerlength:"));
+		Serial.print(footer_length * PULSE_LENGTH_DIVIDER);
+		Serial.print(' ');
+
 		for (int i = 0; i < NRELEMENTS(recordingStates); i++) {
 			if (recordingStates[i] != 0) {
 				bool pulse = (i >= (NRELEMENTS(recordingStates) / 2));
@@ -290,7 +293,9 @@ void printRecordingStates() {
 		}
 		Serial.println();
 		if (gPackage > 0) {
-			Serial.print(" PackageMicros/Gap: ");
+			Serial.print("PackageMicros/Gap #");
+			Serial.print(gPackage);
+			Serial.print(':');
 			for (int i = 0; i < gPackage && i < NRELEMENTS(packageMicros); i++) {
 				Serial.print(packageMicros[i]);
 				Serial.print('-');
@@ -516,7 +521,7 @@ static int recording(unsigned int duration, uint psCountl) {
 		}
 
 	  //recordPackageComplete(duration, package);
-	  if (psniIndex - psniStart >= (MIN_PACKAGE_PULSE/2)) {
+	  if ((psniIndex - psniStart) >= (MIN_PACKAGE_PULSE/2) && ((psniIndex - psniStart) <= 0xFF)) {
 			if (psniStart < NRELEMENTS(psiNibbles) && (psniIndex - psniStart) <= 0xFF) {
 			  psiNibbles[psniStart] = psniIndex - psniStart - 1;
 		   	}
@@ -626,6 +631,7 @@ void handleInterrupt() {
       if (probablyFooter(duration) || !fIsRf) {
 		state = rxRecording;
         psCount = 0;
+		gPackage = 0;
 		startRecording(duration, currentTime, true);
 		registerRecordingState(rsStart, duration, currentTime, psCount, PINHIGH);
 	  }
@@ -642,10 +648,12 @@ void handleInterrupt() {
 	    break;
 	    case rsRestart: // restart package
 			registerRecordingState(rsRestart, duration, currentTime, psCount, PINHIGH);
-			if (gPackage == 0) {
+//			if (gPackage < 2) {
+//			if (gPackage == 0) {
 		        startRecording(duration, currentTime);
 		        state = rxWaiting; // restart wait?
-			}
+				gPackage = 0;
+//			}
 			psCount = 0;
 			break;
 		case rsNextPackage:
